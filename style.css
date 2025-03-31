@@ -1,0 +1,146 @@
+body {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    margin: 20px;
+}
+
+/* CABECERA: XTRAICE / CLIENTE */
+.header {
+    display: flex;
+    justify-content: space-between;
+    margin: 20px;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+}
+
+.shipper-container,
+.consignee-container {
+    width: 50%;
+    box-sizing: border-box;
+}
+
+.shipper-container {
+    border-right: 1px solid #000;
+    padding-right: 10px;
+}
+
+.consignee-container {
+    padding-left: 10px;
+}
+
+.shipper, .consignee {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+/* CAMPOS DIRECCIÓN CLIENTE */
+textarea#consigneeAddress {
+    width: 100%;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 0.9em;
+}
+
+/* TABLA PRINCIPAL */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 6px;
+    vertical-align: top;
+}
+
+input, select {
+    width: 100%;
+    border: 1px solid #ccc;
+    padding: 2px;
+    box-sizing: border-box;
+}
+
+/* FILAS DE PALETS / ITEMS */
+.pallet-row td {
+    background: #e6f3ff;
+    font-weight: bold;
+}
+.pallet-row {
+    background-color: #e6f3ff;
+}
+.item-row td {
+    background: #f9f9f9;
+}
+.item-row {
+    background-color: #f9f9f9;
+}
+
+/* CONTROLES Y BOTONES */
+.controls {
+    margin: 10px 0;
+}
+
+button {
+    margin-right: 5px;
+    padding: 5px 10px;
+    cursor: pointer;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 3px;
+}
+
+.delete-btn {
+    color: red;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* ANCHURAS DE COLUMNAS */
+th:nth-child(1) { width: 5%; }
+th:nth-child(2) { width: 7%; }
+th:nth-child(3) { width: 7%; }
+th:nth-child(4) { width: 7%; }
+th:nth-child(5) { width: 7%; }
+th:nth-child(6) { width: 7%; }
+th:nth-child(7) { width: 7%; }
+th:nth-child(8) { width: 5%; }
+th:nth-child(9) { width: 5%; }
+th:nth-child(10) { width: 21%; }
+th:nth-child(11) { width: 5%; }
+th:nth-child(12) { width: 5%; }
+th:nth-child(13) { width: 5%; }
+th:nth-child(14) { width: 7%; }
+th:nth-child(15) { width: 3%; }
+
+/* NUEVA CLASE PARA CELDAS VACÍAS */
+.empty-header {
+    background: #f0f8ff;
+    border: 1px solid #ddd !important;
+}
+
+/* POSICIÓN DEL BOTÓN ELIMINAR */
+td:last-child {
+    text-align: center;
+    width: 30px !important;
+}
+
+/* BOTÓN AÑADIR ITEM SIN BORDE */
+.add-item-cell {
+    border: none !important;
+    padding: 8px 0;
+    text-align: center;
+}
+
+/* ENCABEZADO FACTURA */
+.invoice-header {
+    margin: 20px;
+    font-size: 14px;
+}
+.invoice-header input {
+    padding: 4px;
+    margin-left: 8px;
+}

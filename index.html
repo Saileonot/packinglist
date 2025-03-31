@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shipping Manager</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="header">
+        <div class="shipper-container">
+          <div class="shipper">SHIPPER NAME AND ADDRESS</div>
+          <div>
+            EXTRAICE SL<br>
+            Parque Empresarial Los Llanos<br>
+            C/Extremadura nº 2<br>
+            41909 Salteras (Sevilla). SPAIN<br>
+            Phone: +34 955 110 357
+          </div>
+        </div>
+        <div class="consignee-container">
+          <div class="consignee">CONSIGNEE NAME AND ADDRESS</div>
+          <textarea id="consigneeAddress" rows="5" cols="40" placeholder="Introduce aquí la dirección del CONSIGNEE..."></textarea>
+        </div>
+      </div> <!-- fin de .header -->
+
+    <div style="height: 10px;"></div>
+
+    <div class="invoice-header" style="display: flex; align-items: center; gap: 12px; margin: 0 20px;">
+        <label for="invoiceNumber">INVOICE Nº:</label>
+        <input type="text" id="invoiceNumber" style="width: 150px;" placeholder="Ej. INV-2025-001">
+        <label for="invoiceDate">INVOICE DATE:</label>
+        <input type="date" id="invoiceDate" style="width: 140px;">
+    </div>
+    <select onchange="cambiarIdioma(this.value)">
+        <option value="ES">Español</option>
+        <option value="EN">English (lbs)</option>
+      </select>
+
+    <div class="controls">
+        <div style="margin-bottom: 10px;">
+            <button onclick="addPallet()">Add Pallet</button>
+            <button onclick="exportToFile()">Exportar</button>
+            <input type="file" id="importFile" style="display:none" onchange="importFromFile(event)">
+            <button onclick="document.getElementById('importFile').click()">Importar</button>
+            <button onclick="saveData()">Save</button>
+            <button onclick="loadData()">Load</button>
+            <button onclick="resetScreen()">Reset</button>
+            <button onclick="generatePDF()">Generate PDF</button>
+        </div>
+        <div>
+            <button onclick="addPalletProPanels()" style="background-color: #efff09; color: black;">➕ Pallet Panels</button>
+            <button onclick="addPalletAlumBarriers()" style="background-color: #efff09; color: black;">➕ Pallet Alum Barriers</button>
+            <button onclick="addPalletPatines()" style="background-color: #efff09; color: black;">➕ Pallet Patines</button>
+            <button onclick="addPalletPatineros()" style="background-color: #efff09; color: black;">➕ Pallet Patineros</button>
+            <button onclick="addPalletAccesorios()" style="background-color: #efff09; color:black;">➕ Pallet Accesorios</button>
+            <button onclick="addPalletPiesDeValla()" style="background-color: #efff09; color: black;">➕ Pies Valla</button>
+        </div>
+    </div>
+
+    <table id="mainTable">
+        <div id="emptyMessage" style="text-align:center; margin: 20px; font-style: italic; color: gray;">
+            Aún no hay palets añadidos. Añade Pallets con ADD PALLET o PALLETS Automáticos (en amarillo)
+          </div>
+        <thead>
+            <tr>
+                <th>Palet Nº</th>
+                <th>Pallet Weight</th>
+                <th>Net Weight</th>
+                <th>Dim-x</th>
+                <th>Dim-y</th>
+                <th>Dim-z</th>
+                <th>Bulk m3</th>
+                <th>Stackable</th>
+                <th>Units (pallet)</th>
+                <th>Description</th>
+                <th>Units</th>
+                <th>Net Weight Unit</th>
+                <th>Total Weight</th>
+                <th>Taric Nº</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            <!-- Las filas se generan dinámicamente via JavaScript -->
+        </tbody>
+    </table>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="script.js"></script>
+   
+</body>
+</html>
