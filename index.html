@@ -29,17 +29,27 @@
     <div class="invoice-header" style="display: flex; align-items: center; gap: 12px; margin: 0 20px;">
         <label for="invoiceNumber">INVOICE Nº:</label>
         <input type="text" id="invoiceNumber" style="width: 150px;" placeholder="Ej. INV-2025-001">
+        
         <label for="invoiceDate">INVOICE DATE:</label>
         <input type="date" id="invoiceDate" style="width: 140px;">
+    
+        <label for="langSelect">Language:</label>
+        <select id="langSelect" onchange="cambiarIdioma(this.value)">
+            <option value="ES">Español</option>
+            <option value="EN">English</option>
+        </select>
+    
+        <label for="unitSelect">Units:</label>
+        <select id="unitSelect" onchange="cambiarUnidad(this.value)">
+            <option value="KG">KG</option>
+            <option value="LB">LB</option>
+        </select>
     </div>
-    <select onchange="cambiarIdioma(this.value)">
-        <option value="ES">Español</option>
-        <option value="EN">English (lbs)</option>
-      </select>
 
     <div class="controls">
         <div style="margin-bottom: 10px;">
             <button onclick="addPallet()">Add Pallet</button>
+            <button onclick="abrirModalProductoPersonalizado()" style="background-color: #b3e5fc; color: black;">➕ Producto Personalizado</button>
             <button onclick="exportToFile()">Exportar</button>
             <input type="file" id="importFile" style="display:none" onchange="importFromFile(event)">
             <button onclick="document.getElementById('importFile').click()">Importar</button>
@@ -47,6 +57,7 @@
             <button onclick="loadData()">Load</button>
             <button onclick="resetScreen()">Reset</button>
             <button onclick="generatePDF()">Generate PDF</button>
+            <button onclick="exportToExcel()">📥 Exportar a Excel</button>
         </div>
         <div>
             <button onclick="addPalletProPanels()" style="background-color: #efff09; color: black;">➕ Pallet Panels</button>
@@ -88,7 +99,33 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="script.js"></script>
+    <!-- Modal para producto personalizado -->
+    <div id="modalProductoPersonalizado" style="display: none; position: fixed; top: 20%; left: 50%; transform: translateX(-50%);
+    background: white; border: 2px solid #aaa; border-radius: 8px; padding: 20px; z-index: 9999; box-shadow: 0 0 10px rgba(0,0,0,0.3);">
+    <h3>➕ Añadir Producto Personalizado</h3>
+    <label>Descripción:</label><br>
+    <input type="text" id="customDescription"><br><br>
+
+    <label>Name (EN):</label><br>
+    <input type="text" id="customNameEN"><br><br>
+
+    <label>Peso unitario (kg):</label><br>
+    <input type="number" id="customNetWeight" step="0.01"><br><br>
+
+    <label>Unidades:</label><br>
+    <input type="number" id="customUnits"><br><br>
+
+    <label>TARIC:</label><br>
+    <input type="text" id="customTaric"><br><br>
+
+    <label>Añadir al Pallet:</label><br>
+    <select id="customPalletSelect"></select><br><br>
+
+    <button onclick="guardarProductoPersonalizado()">Guardar</button>
+    <button onclick="cerrarModalProductoPersonalizado()">Cancelar</button>
+    </div>
    
 </body>
 </html>
