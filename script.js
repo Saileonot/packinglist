@@ -26,9 +26,15 @@
 
 
 let idioma = 'ES';
+let unidadPeso = 'KG'; // KG o LB
 
 function cambiarIdioma(nuevoIdioma) {
     idioma = nuevoIdioma;
+    renderTable();
+}
+
+function cambiarUnidad(nuevaUnidad) {
+    unidadPeso = nuevaUnidad;
     renderTable();
 }
 
@@ -151,8 +157,7 @@ let lastUsedPalletNumber = 0; // Control de numeración de pallets
 
 function getNextPalletNumber() {
     if (data.length === 0) return 1;
-    const lastPallet = data[data.length - 1];
-    return lastUsedPalletNumber + lastPallet.unitsPallet;
+    return data.reduce((acc, p) => acc + p.unitsPallet, 0) + 1;
 }
 
 function addPallet() {
@@ -174,6 +179,87 @@ function addPallet() {
     
     data.unshift(newPallet);
     lastUsedPalletNumber = newPalletNumber;
+    renderTable();
+}
+
+function abrirModalProductoPersonalizado() {
+    const modal = document.getElementById("modalProductoPersonalizado");
+    const select = document.getElementById("customPalletSelect");
+
+    select.innerHTML = "";
+
+    if (data.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "nuevo";
+        opt.textContent = "⚠️ No hay pallets (crear uno nuevo)";
+        select.appendChild(opt);
+    } else {
+        data.forEach(p => {
+            const opt = document.createElement("option");
+            opt.value = p.id;
+            opt.textContent = `Pallet nº ${p.palletNum}`;
+            select.appendChild(opt);
+        });
+    }
+
+    modal.style.display = "block";
+}
+
+function cerrarModalProductoPersonalizado() {
+    document.getElementById("modalProductoPersonalizado").style.display = "none";
+}
+
+function guardarProductoPersonalizado() {
+    const description = document.getElementById("customDescription").value.trim();
+    const nameEN = document.getElementById("customNameEN").value.trim();
+    const netWeight = parseFloat(document.getElementById("customNetWeight").value);
+    const units = parseInt(document.getElementById("customUnits").value);
+    const taric = document.getElementById("customTaric").value.trim();
+    const palletId = document.getElementById("customPalletSelect").value;
+
+    if (!description || isNaN(netWeight) || isNaN(units) || !taric) {
+        alert("Por favor, rellena todos los campos correctamente.");
+        return;
+    }
+
+    const item = {
+        id: `item-${Date.now()}`,
+        description: description,
+        nameEs: description,
+        nameEn: nameEN || description, // fallback
+        netWeightUnit: netWeight,
+        units: units,
+        totalWeight: netWeight * units,
+        taric: taric
+    };
+
+    if (palletId === "nuevo") {
+        const newPallet = {
+            id: `pallet-${Date.now()}`,
+            palletNum: getNextPalletNumber(),
+            grossWeight: 15,
+            netWeight: item.totalWeight,
+            dimX: 1.00,
+            dimY: 1.00,
+            dimZ: 1.00,
+            bulk: 0,
+            stackable: 'NOT',
+            unitsPallet: 1,
+            items: [item]
+        };
+        calculateBulk(newPallet);
+        data.unshift(newPallet);
+        lastUsedPalletNumber = newPallet.palletNum;
+    } else {
+        const pallet = data.find(p => p.id === palletId);
+        if (pallet) {
+            pallet.items.push(item);
+            pallet.netWeight += item.totalWeight;
+            calculateBulk(pallet);
+        }
+    }
+
+    cerrarModalProductoPersonalizado();
     renderTable();
 }
 
@@ -455,14 +541,18 @@ function addPalletAlumBarriers() {
 // ======================
 
 function renderTable() {
+    const factor = unidadPeso === 'LB' ? 2.20462 : 1;
+    const weightUnit = unidadPeso === 'LB' ? 'lb' : 'kg';
+    const volumeFactor = unidadPeso === 'LB' ? 35.3147 : 1;
+    const volumeUnit = unidadPeso === 'LB' ? 'ft³' : 'm³';
+
     const tbody = document.getElementById('tableBody');
     tbody.querySelectorAll('.dynamic-row').forEach(row => row.remove());
 
-    // 👇 Nuevo bloque para mostrar/ocultar el mensaje
     const emptyMessage = document.getElementById('emptyMessage');
     if (data.length === 0) {
         emptyMessage.style.display = "block";
-        return; // No seguimos renderizando si no hay pallets
+        return;
     } else {
         emptyMessage.style.display = "none";
     }
@@ -485,7 +575,7 @@ function renderTable() {
                 onchange="updateDimension('${pallet.id}', 'dimY', this.value)"></td>
             <td><input type="number" value="${pallet.dimZ.toFixed(2)}" step="0.01" 
                 onchange="updateDimension('${pallet.id}', 'dimZ', this.value)"></td>
-            <td>${Number(pallet.bulk).toFixed(2)}</td>
+            <td>${(pallet.bulk * volumeFactor).toFixed(2)} ${volumeUnit}</td>
             <td>
                 <select onchange="updatePallet('${pallet.id}', 'stackable', this.value)">
                     <option ${pallet.stackable === 'YES' ? 'selected' : ''}>YES</option>
@@ -516,26 +606,26 @@ function renderTable() {
                 <td></td>
                 <td></td>
                 <td>
-                <select onchange="updateItem('${item.id}', 'description', this.value)">
-                    <option value="">Seleccionar...</option>
-                    ${materiales.map(m => `
-                    <option value="${m.description}" ${item.description === m.description ? 'selected' : ''}>
-                        ${idioma === "ES" ? m.nameEs : m.description}
-                    </option>
-                    `).join('')}
-                </select>
+                    <input type="text"
+                        class="autocomplete-input"
+                        list="materialesList-${item.id}"
+                        value="${idioma === 'ES' ? (materiales.find(m => m.description === item.description)?.nameEs || item.nameEs || '') : (item.description || '')}"
+                        onchange="autocompleteProducto(event, '${item.id}')"
+                        placeholder="Buscar producto..." />
+
+                    <datalist id="materialesList-${item.id}">
+                        ${materiales.map(m => `
+                            <option value="${idioma === 'ES' ? m.nameEs : m.description}"></option>
+                        `).join('')}
+                    </datalist>
                 </td>
                 <td><input type="number" value="${item.units}" 
                     onchange="updateItem('${item.id}', 'units', this.value)"></td>
                 <td>
-                ${idioma === 'EN' 
-                ? (item.netWeightUnit * 2.20462).toFixed(2) + ' lb' 
-                : item.netWeightUnit.toFixed(2) + ' kg'}
+                ${(item.netWeightUnit * factor).toFixed(2)} ${weightUnit}
                 </td>
                 <td>
-                ${idioma === 'EN' 
-                ? (item.totalWeight * 2.20462).toFixed(2) + ' lb'
-                : item.totalWeight.toFixed(2) + ' kg'}
+                ${(item.totalWeight * factor).toFixed(2)} ${weightUnit}
                 </td>
                 <td>${item.taric}</td>
                 <td><span class="delete-btn" onclick="deleteRow('${item.id}')">✕</span></td>
@@ -553,7 +643,7 @@ function renderTable() {
             </td>
         `;
         tbody.prepend(addButtonRow);
-});
+    });
 }
 
 // ======================
@@ -609,6 +699,39 @@ function updateItem(id, field, value) {
             calculateTotals(pallet.id);
         }
     });
+    renderTable();
+}
+
+function autocompleteProducto(event, itemId) {
+    const inputText = event.target.value.toLowerCase();
+
+    const match = materiales.find(m => {
+        const label = idioma === 'ES' ? m.nameEs : m.description;
+        return label.toLowerCase() === inputText;
+    });
+
+    data.forEach(pallet => {
+        const item = pallet.items.find(i => i.id === itemId);
+        if (item) {
+            if (match) {
+                item.description = match.description;
+                item.nameEs = match.nameEs;
+                item.nameEn = match.description;
+                item.netWeightUnit = match.netWeight;
+                item.taric = match.taricNumber;
+            } else {
+                item.description = inputText;
+                item.nameEs = inputText;
+                item.nameEn = inputText;
+                item.netWeightUnit = 0;
+                item.taric = "";
+            }
+
+            item.totalWeight = item.units * item.netWeightUnit;
+            calculateTotals(pallet.id);
+        }
+    });
+
     renderTable();
 }
 
@@ -671,90 +794,125 @@ function loadData() {
 // ======================
 
 function generatePDF() {
-    
     const consigneeTextarea = document.getElementById("consigneeAddress");
-    
     let consigneeLines = consigneeTextarea.value.split('\n').slice(0, 5);
-
-    // Rellenar con líneas en blanco si hay menos de 5
-    while (consigneeLines.length < 5) {
-        consigneeLines.push('');
-    }
-
-    // Limitar a máximo 5 líneas
+    while (consigneeLines.length < 5) consigneeLines.push('');
     const trimmedConsigneeLines = consigneeLines.slice(0, 5);
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    
-    
-    // SHIPPER block
-    doc.setFontSize(10);
-    doc.setTextColor(40);
-    doc.setFont(undefined, 'bold');
-    doc.text('SHIPPER NAME AND ADDRESS', 14, 20);
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(9);
-    doc.text([
-        'EXTRAICE SL',
-        'Parque Empresarial Los Llanos',
-        'C/Extremadura nº 2',
-        '41909 Salteras (Sevilla). SPAIN',
-        'Phone: +34 955 110 357',
-        'Contact Details: Tono Elias - (+34) 696 48 48 65',
-        ' '
-    ], 14, 26);
-    
-    // CONSIGNEE block
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'bold');
-    doc.text('CONSIGNEE NAME AND ADDRESS', 110, 20);
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(0);
-    consigneeLines.forEach((line, index) => {
-        doc.text(line, 110, 26 + index * 4);
-    });
-    
+
+    // Datos previos necesarios para continuar tras cargar la imagen
     const invoiceNumber = document.getElementById("invoiceNumber").value;
     const invoiceDate = document.getElementById("invoiceDate").value;
-    doc.setFont(undefined, 'bold');
-    doc.setFontSize(8);
-    doc.text(`INVOICE Nº: ${invoiceNumber}`, 14, 50);
-    doc.text(`INVOICE DATE: ${invoiceDate}`, 110, 50);
+    const weightUnit = unidadPeso === 'LB' ? 'lb' : 'kg';
+    const factor = unidadPeso === 'LB' ? 2.20462 : 1;
+    const volumeFactor = unidadPeso === 'LB' ? 35.3147 : 1;
+    const volumeUnit = unidadPeso === 'LB' ? 'ft³' : 'm³';
+    const dimensionFactor = unidadPeso === 'LB' ? 3.28084 : 1; // metros a pies
 
-    const weightUnit = idioma === 'EN' ? 'lb' : 'kg';
-    const factor = idioma === 'EN' ? 2.20462 : 1;
+    // Cargar imagen y continuar en onload
+    const img = new Image();
+    img.src = './logoxtraice.jpg';
+    img.onload = function () {
+        // Título "PACKING LIST" centrado y sombreado
+        doc.setFillColor(41, 128, 185);
+        doc.rect(14, 4, 182, 7, 'F'); // Fila sombreada más arriba
+        doc.setTextColor(255);
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('PACKING LIST', 105, 9, { align: 'center' }); // Texto subido
+        doc.setTextColor(40); // Restaurar color texto por defecto
+        // SHIPPER
+        doc.setFontSize(10);
+        doc.setTextColor(40);
+        doc.setFont(undefined, 'bold');
+        doc.text(idioma === 'ES' ? 'NOMBRE Y DIRECCION REMITENTE' : 'SHIPPER NAME AND ADDRESS', 14, 15);
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(9);
+        doc.text([
+            'EXTRAICE SL',
+            'Parque Empresarial Los Llanos',
+            'C/Extremadura nº 2, buzón 30',
+            '41909 Salteras (Sevilla). SPAIN',
+            'Phone: +34 955 110 357',
+            'Contact Details: Tono Elias - (+34) 696 48 48 65',
+            ' '
+        ], 14, 20);
+
+        // CONSIGNEE
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(10);
+        doc.text(idioma === 'ES' ? 'NOMBRE Y DIRECCION CONSIGNATARIO' : 'CONSIGNEE NAME AND ADDRESS', 110, 15);
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(0);
+        trimmedConsigneeLines.forEach((line, index) => {
+            doc.text(line, 110, 20 + index * 4);
+        });
+
+        // FACTURA (en línea con el logo)
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(8);
+        // Logo a la izquierda
+        doc.addImage(img, 'JPEG', 14, 43, 22, 8.5); // x, y, width, height
+
+        // FACTURA (en línea con el logo)
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(8);
+
+        // FACTURA Nº centrado
+        doc.text(`${idioma === 'ES' ? 'FACTURA Nº' : 'INVOICE Nº'}: ${invoiceNumber}`, 80, 51);
+
+        // FECHA FACTURA a la derecha
+        doc.text(`${idioma === 'ES' ? 'FECHA FACTURA' : 'INVOICE DATE'}: ${invoiceDate}`, 150, 51);
+        // Ahora sí: el contenido del PDF
+        continuarPDF(doc, factor, weightUnit, volumeFactor, volumeUnit, dimensionFactor, trimmedConsigneeLines);
+    };
+}
+
+function continuarPDF(doc, factor, weightUnit, volumeFactor, volumeUnit, dimensionFactor, consigneeLines) {
     let yPos = 48 + consigneeLines.length * 1;
     let totalGross = 0;
     let totalNet = 0;
     let totalBulk = 0;
     let allItems = [];
-    let totalCombinedWeight = 0;
 
     [...data].sort((a, b) => a.palletNum - b.palletNum).forEach(pallet => {
         pallet.items.forEach((item, index) => {
             allItems.push([
                 index === 0 ? pallet.palletNum : '',
-                idioma === 'ES' ? (item.nameEs || item.description) : item.description,
-                '',//STACKABLE vacio en items
+                idioma === 'ES'
+                    ? (item.nameEs || item.description)
+                    : (item.nameEn || item.description),
+                '',
                 item.units,
                 (item.netWeightUnit * factor).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ` ${weightUnit}`,
                 (item.totalWeight * factor).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ` ${weightUnit}`,
                 item.taric,
-                {
-                    raw: pallet.palletNum,
-                    content: ''
-                }
+                { raw: pallet.palletNum, content: '' }
             ]);
         });
- 
-        // Insertar la fila TOTAL justo después de los ítems del pallet con las medidas en una columna separada
+        // 🧮 Dimensiones adaptadas a unidad de medida
+        const medidas = unidadPeso === 'LB'
+            ? `${(pallet.dimX * dimensionFactor).toFixed(2)}x${(pallet.dimY * dimensionFactor).toFixed(2)}x${(pallet.dimZ * dimensionFactor).toFixed(2)} ft`
+            : `${pallet.dimX.toFixed(2)}x${pallet.dimY.toFixed(2)}x${pallet.dimZ.toFixed(2)} m`;
+
+        // Calcular rango si hay agrupación de pallets
+        const firstNum = pallet.palletNum;
+        const lastNum = firstNum + (pallet.unitsPallet || 1) - 1;
+        const palletLabel = pallet.unitsPallet > 1
+        ? (idioma === 'ES'
+            ? `TOTAL PALLET nº ${firstNum} al ${lastNum}`
+            : `TOTAL PALLET nº ${firstNum} to ${lastNum}`)
+        : `TOTAL PALLET nº ${firstNum}`;
+
+
         allItems.push([
             '',
-            `TOTAL PALLET nº ${pallet.palletNum}`,
+            palletLabel,
             pallet.stackable || '',
-            `${pallet.dimX.toFixed(2)}x${pallet.dimY.toFixed(2)}x${pallet.dimZ.toFixed(2)} m`,
+            medidas,
             '',
             (pallet.netWeight * factor).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ` ${weightUnit}`,
             (pallet.grossWeight * factor).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ` ${weightUnit}`,
@@ -763,17 +921,20 @@ function generatePDF() {
                 content: ((pallet.netWeight + pallet.grossWeight) * factor).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ` ${weightUnit}`
             }
         ]);
- 
+
         totalGross += pallet.grossWeight;
         totalNet += pallet.netWeight;
         totalBulk += pallet.bulk;
-        totalCombinedWeight += pallet.grossWeight + pallet.netWeight;
     });
-    let lastPallet = null;
-    let groupColor = null;
+
+    // TABLA PRINCIPAL
+    const headers = idioma === 'ES'
+    ? ['Nº Pallet', 'Descripción', 'Apilable', 'Unidades / Medidas', 'Neto / Unidad', 'Neto Total', 'Taric / Tara Pallet', 'Bruto Total']
+    : ['Pallet No.', 'Description', 'Stackable', 'Units / Dimensions', 'Net per Unit', 'Net Total', 'Taric / Tare Weight', 'Gross Total'];
+
     doc.autoTable({
         startY: yPos,
-        head: [['Pallet Nº', 'Description','Stackable', 'Units/Medidas', 'Net/Unit', 'Total Neto', 'Taric/Peso Pallet', 'Total Bruto']],
+        head: [headers],
         body: allItems,
         theme: 'grid',
         styles: { fontSize: 6, cellPadding: 1.2 },
@@ -783,78 +944,49 @@ function generatePDF() {
             fontStyle: 'bold',
             minCellHeight: 6
         },
-        columnStyles: {
-            0: {},
-            1: {},
-            2: {}, // Stackable
-            3: {},
-            4: {},
-            5: {},
-            6: {},
-            7: {}  // Nueva columna final
-        },
         useCss: true,
         didParseCell: function (data) {
             if (data.section !== 'body') return;
             if (typeof data.row.raw[1] === 'string' && data.row.raw[1].includes('TOTAL PALLET')) {
-                data.cell.styles.fillColor = [230, 240, 255]; // azul claro sutil
+                data.cell.styles.fillColor = [230, 240, 255];
                 data.cell.styles.fontStyle = 'bold';
             }
- 
-            let currentPallet = null;
-            try {
-                const palletCell = data.row.raw[7];
-                if (palletCell && typeof palletCell === 'object' && 'raw' in palletCell) {
-                    currentPallet = palletCell.raw;
-                } else if (typeof palletCell === 'string' && palletCell.includes('|')) {
-                    currentPallet = palletCell.split('|')[1];
-                } else {
-                    currentPallet = palletCell;
-                }
-            } catch (e) {
-                currentPallet = null;
-            }
- 
-            const rowIndex = data.row.index;
- 
-            let prevPallet = rowIndex > 0 ? allItems[rowIndex - 1][7] : null;
-            let nextPallet = rowIndex < allItems.length - 1 ? allItems[rowIndex + 1][7] : null;
 
-            if (prevPallet && typeof prevPallet === 'object') prevPallet = prevPallet.raw;
-            if (nextPallet && typeof nextPallet === 'object') nextPallet = nextPallet.raw;
- 
+            const palletCell = data.row.raw[7];
+            const currentPallet = palletCell?.raw ?? palletCell;
+            const rowIndex = data.row.index;
+            let prevPallet = allItems[rowIndex - 1]?.[7]?.raw ?? allItems[rowIndex - 1]?.[7];
+            let nextPallet = allItems[rowIndex + 1]?.[7]?.raw ?? allItems[rowIndex + 1]?.[7];
+
             data.cell.styles.lineColor = [0, 112, 192];
             data.cell.styles.lineWidth = { top: 0, bottom: 0, left: 0, right: 0 };
- 
-            if (rowIndex === 0 || prevPallet !== currentPallet) {
-                data.cell.styles.lineWidth.top = 0.5;
-            }
-            if (rowIndex === allItems.length - 1 || nextPallet !== currentPallet) {
-                data.cell.styles.lineWidth.bottom = 0.5;
-            }
-            if (data.column.index === 0) {
-                data.cell.styles.lineWidth.left = 0.5;
-            }
-            if (data.column.index === data.table.columns.length - 1) {
-                data.cell.styles.lineWidth.right = 0.5;
-            }
+            if (rowIndex === 0 || prevPallet !== currentPallet) data.cell.styles.lineWidth.top = 0.5;
+            if (rowIndex === allItems.length - 1 || nextPallet !== currentPallet) data.cell.styles.lineWidth.bottom = 0.5;
+            if (data.column.index === 0) data.cell.styles.lineWidth.left = 0.5;
+            if (data.column.index === 7) data.cell.styles.lineWidth.right = 0.5;
         },
-        didDrawPage: function (data) {
+        didDrawPage: function () {
             const pageCount = doc.internal.getNumberOfPages();
             doc.setFontSize(8);
             doc.text(`Page ${doc.internal.getCurrentPageInfo().pageNumber} of ${pageCount}`, 195, 290, { align: 'right' });
         }
     });
-    yPos = doc.lastAutoTable.finalY + 5;
 
+    // TABLA DE TOTALES
+    yPos = doc.lastAutoTable.finalY + 5;
     doc.autoTable({
         startY: yPos,
-        head: [['Nº Pallets', 'Total Neto', 'Total Bruto', 'Volumen Total (m³)']],
+        head: [[
+            idioma === 'ES' ? 'Nº Pallets' : 'No. of Pallets',
+            idioma === 'ES' ? 'Total Neto' : 'Total Net',
+            idioma === 'ES' ? 'Total Bruto' : 'Total Gross',
+            idioma === 'ES' ? `Volumen Total (${volumeUnit})` : `Total Volume (${volumeUnit})`
+        ]],
         body: [[
-            data.length.toString(),
+            data.reduce((sum, p) => sum + (p.unitsPallet || 1), 0).toString(),
             `${(totalNet * factor).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${weightUnit}`,
             `${((totalNet + totalGross) * factor).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${weightUnit}`,
-            `${totalBulk.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m3`
+            `${(totalBulk * volumeFactor).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${volumeUnit}`
         ]],
         theme: 'grid',
         styles: {
@@ -877,9 +1009,7 @@ function generatePDF() {
             3: { halign: 'center' }
         }
     });
-    yPos = doc.lastAutoTable.finalY + 5;
 
-    
     doc.save('packing-list.pdf');
 }
 
@@ -888,12 +1018,140 @@ window.renderTable = renderTable;
 window.onload = renderTable;
 
 // Limitar la dirección del consignatario a exactamente 5 líneas
+
+
+async function exportToExcel() {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Packing List");
+    sheet.columns = [
+        { header: '', width: 10 },
+        { header: '', width: 30 },
+        { header: '', width: 10 },
+        { header: '', width: 15 },
+        { header: '', width: 15 },
+        { header: '', width: 15 },
+        { header: '', width: 20 },
+        { header: '', width: 20 }
+    ];
+
+    // Estilo común para títulos
+    const titleStyle = {
+        font: { bold: true, size: 14, color: { argb: 'FFFFFFFF' } },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2980B9' } },
+        alignment: { horizontal: 'center' }
+    };
+
+    // Fila 1 - Título
+    sheet.mergeCells('A1:H1');
+    const titleCell = sheet.getCell('A1');
+    titleCell.value = 'PACKING LIST';
+    Object.assign(titleCell, titleStyle);
+
+    // Remitente
+    const remitente = [
+        'EXTRAICE SL',
+        'Parque Empresarial Los Llanos',
+        'C/Extremadura nº 2',
+        '41909 Salteras (Sevilla). SPAIN',
+        'Phone: +34 955 110 357',
+        'Contact Details: Tono Elias - (+34) 696 48 48 65'
+    ];
+    remitente.forEach((line, i) => {
+        sheet.getCell(`A${i + 3}`).value = line;
+    });
+
+    // Destinatario
+    const consigneeLines = document.getElementById("consigneeAddress").value.split('\n').slice(0, 5);
+    consigneeLines.forEach((line, i) => {
+        sheet.getCell(`E${i + 3}`).value = line;
+    });
+
+    // Nº Factura y Fecha
+    sheet.getCell('A9').value = 'FACTURA Nº:';
+    sheet.getCell('B9').value = document.getElementById("invoiceNumber").value;
+    sheet.getCell('E9').value = 'FECHA FACTURA:';
+    sheet.getCell('F9').value = document.getElementById("invoiceDate").value;
+
+    // Cabecera de tabla
+    const headers = ['Palet Nº', 'Descripción', 'Stackable', 'Unidades / Medidas', 'Peso Neto / Unidad', 'Total Neto', 'Tara Pallet', 'Total Bruto'];
+    sheet.addRow([]);
+    const headerRow = sheet.addRow(headers);
+    headerRow.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2980B9' } };
+        cell.alignment = { horizontal: 'center' };
+    });
+
+    // Datos
+    const factor = unidadPeso === 'LB' ? 2.20462 : 1;
+    let totalNet = data.reduce((sum, p) => sum + p.netWeight, 0);
+    let totalGross = data.reduce((sum, p) => sum + p.grossWeight, 0);
+    let totalBulk = data.reduce((sum, p) => sum + p.bulk, 0);
+    const weightUnit = unidadPeso === 'LB' ? 'lb' : 'kg';
+    const volumeUnit = unidadPeso === 'LB' ? 'ft³' : 'm³';
+    const volumeFactor = unidadPeso === 'LB' ? 35.3147 : 1;
+    [...data].sort((a, b) => a.palletNum - b.palletNum).forEach(pallet => {
+        pallet.items.forEach((item, index) => {
+            sheet.addRow([
+                index === 0 ? pallet.palletNum : '',
+                idioma === 'ES' ? (item.nameEs || item.description) : (item.nameEn || item.description),
+                '',
+                item.units,
+                (item.netWeightUnit * factor).toFixed(2),
+                (item.totalWeight * factor).toFixed(2),
+                item.taric,
+                ''
+            ]);
+        });
+
+        const firstNum = pallet.palletNum;
+        const lastNum = firstNum + (pallet.unitsPallet || 1) - 1;
+        const palletLabel = pallet.unitsPallet > 1
+            ? (idioma === 'ES' ? `TOTAL PALLET nº ${firstNum} al ${lastNum}` : `TOTAL PALLET nº ${firstNum} to ${lastNum}`)
+            : `TOTAL PALLET nº ${firstNum}`;
+
+        const medidas = unidadPeso === 'LB'
+            ? `${(pallet.dimX * 3.28084).toFixed(2)}x${(pallet.dimY * 3.28084).toFixed(2)}x${(pallet.dimZ * 3.28084).toFixed(2)} ft`
+            : `${pallet.dimX.toFixed(2)}x${pallet.dimY.toFixed(2)}x${pallet.dimZ.toFixed(2)} m`;
+
+        sheet.addRow([
+            '',
+            palletLabel,
+            pallet.stackable,
+            medidas,
+            '',
+            (pallet.netWeight * factor).toFixed(2),
+            (pallet.grossWeight * factor).toFixed(2),
+            ((pallet.netWeight + pallet.grossWeight) * factor).toFixed(2)
+        ]);
+        const totalRowStart = sheet.rowCount + 2;
+
+        sheet.addRow([]);
+        sheet.addRow([idioma === 'ES' ? 'Nº Pallets' : 'Total Pallets', data.length.toString()]);
+        sheet.addRow([idioma === 'ES' ? 'Total Neto' : 'Total Net', `${(totalNet * factor).toFixed(2)} ${weightUnit}`]);
+        sheet.addRow([idioma === 'ES' ? 'Total Bruto' : 'Total Gross', `${((totalNet + totalGross) * factor).toFixed(2)} ${weightUnit}`]);
+        sheet.addRow([idioma === 'ES' ? `Volumen Total (${volumeUnit})` : `Total Volume (${volumeUnit})`, `${(totalBulk * volumeFactor).toFixed(2)} ${volumeUnit}`]);
+
+        for (let i = totalRowStart; i <= totalRowStart + 3; i++) {
+            sheet.getCell(`A${i}`).font = { bold: true };
+        }
+
+    });
+
+    // Exportar
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "packing-list.xlsx";
+    a.click();
+}
+
 document.getElementById("consigneeAddress").addEventListener("input", function () {
     const lines = this.value.split('\n');
 
     if (lines.length > 5) {
         this.value = lines.slice(0, 5).join('\n');
-        alert("⚠️ Solo se permiten exactamente 5 líneas en la dirección del consignatario.");
     }
 });
 
@@ -933,6 +1191,7 @@ function exportToFile() {
     document.body.removeChild(a);
 }
 
+
 function importFromFile(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -955,3 +1214,4 @@ function importFromFile(event) {
     };
     reader.readAsText(file);
 }
+
