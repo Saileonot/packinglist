@@ -367,6 +367,45 @@ function addPalletPatines() {
     renderTable();
 }
 
+function addPalletFoam() {
+    const material = materiales.find(m => m.description === "Foam Floor");
+
+    if (!material) {
+        alert("Material 'Foam Floor' no encontrado en la lista.");
+        return;
+    }
+
+    const newItem = {
+        id: `item-${Date.now()}-1`,
+        description: material.description,
+        nameEs: material.nameEs,
+        units: 3,
+        netWeightUnit: material.netWeight,
+        totalWeight: material.netWeight * 3,
+        taric: material.taricNumber
+    };
+
+    const newPallet = {
+        id: `pallet-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        palletNum: getNextPalletNumber(),
+        grossWeight: 0,
+        netWeight: newItem.totalWeight,
+        dimX: 1.22,
+        dimY: 0.80,
+        dimZ: 0.80,
+        bulk: 0.78,
+        stackable: 'NOT',
+        unitsPallet: 1,
+        items: [newItem]
+    };
+
+    calculateBulk(newPallet);
+    data.unshift(newPallet);
+    lastUsedPalletNumber = newPallet.palletNum;
+    renderTable();
+}
+
+
 function addPalletPatineros() {
     const material = materiales.find(m => m.description === "Skates shelves");
 
