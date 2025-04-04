@@ -875,7 +875,7 @@ function generatePDF() {
             'C/Extremadura nº 2, buzón 30',
             '41909 Salteras (Sevilla). SPAIN',
             'Phone: +34 955 110 357',
-            'Contact Details: Tono Elias - (+34) 696 48 48 65',
+            'Contact Details: Alberto Sandino - (+34) 627 068 429 - alberto@xtraice.com',
             ' '
         ], 14, 20);
 
